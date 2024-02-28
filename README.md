@@ -1,3 +1,8 @@
+docker build -t prometheus-kafka-adapter:latest .
+
+helm install prometheus-kafka-adapter /root/monitor/prometheus-kafka-adapter --namespace monitor 
+
+
 # prometheus-kafka-adapter
 
 [![CI](https://github.com/Telefonica/prometheus-kafka-adapter/workflows/Go/badge.svg?event=push)](https://github.com/Telefonica/prometheus-kafka-adapter/actions)
