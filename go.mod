@@ -1,4 +1,4 @@
-module github.com/Telefonica/prometheus-kafka-adapter
+module biao.xu/prometheus/prometheus-kafka-adapter
 
 go 1.20
 
