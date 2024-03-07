@@ -53,15 +53,17 @@ func main() {
 		}
 	}
 
-	//创建topic
-	if kafkaTopic!=""{
-       createTopic(&kafkaConfig,[]string{kafkaTopic})
-	}
 	//创建生产者
 	producer, err := kafka.NewProducer(&kafkaConfig)
 
 	if err != nil {
 		logrus.WithError(err).Fatal("couldn't create kafka producer")
+	}
+
+
+	//创建topic
+	if kafkaTopic!=""{
+		createTopic(producer,[]string{kafkaTopic})
 	}
 
 	r := gin.New()

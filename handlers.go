@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,17 +20,28 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 )
 
-func createTopic(kafkaConfig *kafka.ConfigMap,topics []string){
+func createTopic(producer *kafka.Producer,topics []string){
 	brokers := strings.Split(kafkaBrokerList, ",")
 	numBrokers := len(brokers) // 获取 broker 数量
 	numPartition := 30
-	replicationFactor:=3
-	if numBrokers == 1 {
-		numPartition = 1
-		replicationFactor =8
+	replicationFactor:= 3
+	if numPartitionValue !=""{
+		numPartition, _ = strconv.Atoi(numPartitionValue)
+	}else{
+		if numBrokers == 1 {
+			numPartition = 8
+		}
 	}
+	if replicationFactorValue !=""{
+		replicationFactor, _ = strconv.Atoi(replicationFactorValue)
+	}else{
+		if numBrokers == 1 {
+			replicationFactor =1
+		}
+	}
+
 	// 创建一个新的AdminClient。
-	a, err := kafka.NewAdminClient(kafkaConfig)
+	a, err := kafka.NewAdminClientFromProducer(producer)
 	if err != nil {
 		fmt.Printf("Failed to create Admin client: %s\n", err)
 		os.Exit(1)
@@ -52,18 +64,23 @@ func createTopic(kafkaConfig *kafka.ConfigMap,topics []string){
 		logrus.WithError(err).Fatal("query topic error:")
 	}
 	createTopics :=[]string{}
-	for _,  value:= range topics  {
-		flag :=true
-		for _,  t:= range metadata.Topics {
-			if t.Topic == value {
-				flag =false
-				break
+	if metadata==nil{
+		createTopics = append(topics)
+	}else{
+		for _,  value:= range topics  {
+			flag :=true
+			for _,  t:= range metadata.Topics {
+				if t.Topic == value {
+					flag =false
+					break
+				}
+			}
+			if flag{
+				createTopics= append(createTopics, value)
 			}
 		}
-		if flag{
-			createTopics= append(createTopics, value)
-		}
 	}
+	logrus.Infof("获取节点信息，连接数:"+strconv.Itoa(numBrokers)+"分区数:"+strconv.Itoa(numPartition)+"副本数:"+strconv.Itoa(replicationFactor)+"自定义分区数:"+numPartitionValue+"自定义副本数:"+replicationFactorValue)
 	for _, value := range createTopics {
 		specification := kafka.TopicSpecification{
 			Topic:             value,
