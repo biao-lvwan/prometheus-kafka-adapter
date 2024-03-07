@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -14,6 +18,75 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/prometheus/prometheus/prompb"
 )
+
+func createTopic(kafkaConfig *kafka.ConfigMap,topics []string){
+	brokers := strings.Split(kafkaBrokerList, ",")
+	numBrokers := len(brokers) // 获取 broker 数量
+	numPartition := 30
+	replicationFactor:=3
+	if numBrokers == 1 {
+		numPartition = 1
+		replicationFactor =8
+	}
+	// 创建一个新的AdminClient。
+	a, err := kafka.NewAdminClient(kafkaConfig)
+	if err != nil {
+		fmt.Printf("Failed to create Admin client: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Contexts 用于中止或限制时间量
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	//在集群上创建主题。
+	//设置管理员选项以等待操作完成（或最多60秒）
+	maxDur, err := time.ParseDuration("60s")
+	if err != nil {
+		logrus.WithError(err).Fatal("ParseDuration(60s)")
+	}
+	//创建主题因素
+	topicSpecifications := []kafka.TopicSpecification{}
+	metadata, _ := a.GetMetadata(nil, true, 5000)
+	if err != nil {
+		logrus.WithError(err).Fatal("query topic error:")
+	}
+	createTopics :=[]string{}
+	for _,  value:= range topics  {
+		flag :=true
+		for _,  t:= range metadata.Topics {
+			if t.Topic == value {
+				flag =false
+				break
+			}
+		}
+		if flag{
+			createTopics= append(createTopics, value)
+		}
+	}
+	for _, value := range createTopics {
+		specification := kafka.TopicSpecification{
+			Topic:             value,
+			NumPartitions:     numPartition,
+			ReplicationFactor: replicationFactor}
+		topicSpecifications= append(topicSpecifications,specification )
+	}
+	results, err := a.CreateTopics(
+		ctx,
+		//通过提供的TopicSpecification结构，可以同时创建多个主题
+		topicSpecifications,
+		// Admin options
+		kafka.SetAdminOperationTimeout(maxDur))
+	if err != nil {
+		fmt.Printf("Failed to create topic: %v\n", err)
+		os.Exit(1)
+	}
+	// Print results
+	for _, result := range results {
+		fmt.Printf("%s\n", result)
+	}
+	a.Close()
+}
 
 func receiveHandler(producer *kafka.Producer, serializer Serializer) func(c *gin.Context) {
 	return func(c *gin.Context) {
@@ -47,8 +120,15 @@ func receiveHandler(producer *kafka.Producer, serializer Serializer) func(c *gin
 			logrus.WithError(err).Error("couldn't process write request")
 			return
 		}
-
+        //获取所有的topic手工创建
+		/*topics :=[]string{}
+		for topic, _ := range metricsPerTopic {
+			topics= append(topics, topic)
+		}
+		//检查是否创建topic,可用动态创建topic，但是会损耗效率，关闭此功能
+		createTopic(kafkaConfig,topics)*/
 		for topic, metrics := range metricsPerTopic {
+
 			t := topic
 			part := kafka.TopicPartition{
 				Partition: kafka.PartitionAny,
