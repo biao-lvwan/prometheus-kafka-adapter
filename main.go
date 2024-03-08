@@ -71,14 +71,14 @@ func main() {
 	r.Use(ginrus.Ginrus(logrus.StandardLogger(), time.RFC3339, true), gin.Recovery())
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "UP"}) })
+	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"status": "OK"}) })
 	if basicauth {
 		authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
 			basicauthUsername: basicauthPassword,
 		}))
-		authorized.POST("/receive", receiveHandler(producer, serializer))
+		authorized.POST("/receive", receiveHandler(producer))
 	} else {
-		r.POST("/receive", receiveHandler(producer, serializer))
+		r.POST("/receive", receiveHandler(producer))
 	}
 
 	logrus.Fatal(r.Run())

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -105,18 +105,18 @@ func createTopic(producer *kafka.Producer,topics []string){
 	a.Close()
 }
 
-func receiveHandler(producer *kafka.Producer, serializer Serializer) func(c *gin.Context) {
+func receiveHandler(producer *kafka.Producer) func(c *gin.Context) {
 	return func(c *gin.Context) {
 
 		httpRequestsTotal.Add(float64(1))
 
-		compressed, err := ioutil.ReadAll(c.Request.Body)
+		compressed, err := io.ReadAll(c.Request.Body)
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			logrus.WithError(err).Error("couldn't read body")
 			return
 		}
-
+        //解码收到的数据
 		reqBuf, err := snappy.Decode(nil, compressed)
 		if err != nil {
 			c.AbortWithStatus(http.StatusBadRequest)
