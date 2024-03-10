@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/linkedin/goavro/v2"
 	"io/ioutil"
 	"strconv"
 	"time"
@@ -10,8 +11,6 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/sirupsen/logrus"
-
-	"github.com/linkedin/goavro"
 )
 
 // Serializer represents an abstract metrics serializer

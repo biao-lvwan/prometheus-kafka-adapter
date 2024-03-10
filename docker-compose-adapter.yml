@@ -1,0 +1,60 @@
+version: '2'
+services:
+  prometheus-zookeeper:
+    container_name: prometheus-zookeeper
+    image: bitnami/zookeeper:3.6.4
+    ports:
+      - "2181:2181"
+    networks:
+      - prometheus
+    environment:
+      - ZOO_PORT_NUMBER=2181
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  prometheus-kafka:
+    container_name: prometheus-kafka
+    image: bitnami/kafka:2.8.1
+    ports:
+      - "9092:9092"
+    depends_on:
+      - prometheus-zookeeper
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=prometheus-zookeeper:2181
+    networks:
+      - prometheus
+
+  dbzui-prometheus:
+    container_name: dbzui-prometheus
+    image: xubiao05/prometheus-kafka-adapter:latest
+    ports:
+      - "18000:8000"
+    depends_on:
+      - prometheus-kafka
+    environment:
+      - KAFKA_BROKER_LIST=prometheus-kafka:9092
+      - KAFKA_TOPIC=metrics-prometheus
+      - PORT=8000
+    networks:
+      - prometheus
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:0.2.0
+    container_name: kafka-ui
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=prometheus-kafka:9092
+    ports:
+      - "9080:8080"
+    depends_on:
+      - prometheus-kafka
+      - prometheus-zookeeper
+    networks:
+      - prometheus
+
+networks:
+  prometheus:
+    external: false
